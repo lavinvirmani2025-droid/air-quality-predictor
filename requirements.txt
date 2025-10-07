@@ -5,3 +5,5 @@ scikit-learn
 joblib
 requests
 gunicorn
+gdown==4.8.0
+
