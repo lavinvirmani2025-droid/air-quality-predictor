@@ -1,25 +1,50 @@
-import os
+from flask import Flask, render_template, request
 import joblib
-import requests
+import numpy as np
 
-# Define the model filename
-MODEL_FILENAME = 'air_quality_model.pkl'
+# Create Flask app
+app = Flask(__name__)
 
-# Check if the model file exists locally
-if not os.path.exists(MODEL_FILENAME):
-    print("Model not found locally. Downloading...")
-    # Google Drive direct download link
-    file_id = '14sCTd_pBAWek4u8GjRxvTgyfxHXXAB-3'
-    url = f'https://drive.google.com/uc?export=download&id={file_id}'
-    response = requests.get(url, stream=True)
-    if response.status_code == 200:
-        with open(MODEL_FILENAME, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        print(f"Model downloaded successfully: {MODEL_FILENAME}")
-    else:
-        print("Failed to download the model.")
-        exit(1)
+# Home route
+@app.route("/", methods=["GET", "POST"])
+def index():
+    prediction = None
 
-# Load the model
-model = joblib.load(MODEL_FILENAME)
+    if request.method == "POST":
+        try:
+            # Read input values from form
+            pm25 = float(request.form["pm25"])
+            pm10 = float(request.form["pm10"])
+            no2 = float(request.form["no2"])
+            so2 = float(request.form["so2"])
+            co = float(request.form["co"])
+            o3 = float(request.form["o3"])
+
+            # Load model
+            model = joblib.load("air_quality_model.pkl")
+
+            # Predict AQI
+            pred = model.predict(np.array([[pm25, pm10, no2, so2, co, o3]]))[0]
+
+            # Classify AQI
+            if pred <= 50:
+                category = "Good"
+            elif pred <= 100:
+                category = "Moderate"
+            elif pred <= 200:
+                category = "Unhealthy"
+            elif pred <= 300:
+                category = "Very Unhealthy"
+            else:
+                category = "Hazardous"
+
+            prediction = f"{pred:.2f} → {category}"
+
+        except Exception as e:
+            prediction = f"Error: {e}"
+
+    return render_template("index.html", prediction=prediction)
+
+# Run app (for local testing)
+if __name__ == "__main__":
+    app.run(debug=True)
